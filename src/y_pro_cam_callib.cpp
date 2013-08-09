@@ -21,9 +21,9 @@ ProCamCal::ProCamCal(QMainWindow *parent) :
   timer_ = new QTimer(this);
   connect(timer_, SIGNAL(timeout()), this, SLOT(onTimerUpdate()));
 
-  display = new QDialog(this);
+  display_ = new QDialog(this);
   display_ui = new Ui::Display;
-  display_ui->setupUi(display);
+  display_ui->setupUi(display_);
 }
 
 ProCamCal::~ProCamCal()
@@ -39,14 +39,6 @@ void ProCamCal::on_spinBoxProjectorID_valueChanged(int value)
   qDebug() << screen;
   ui->spinBoxProjectorWidth->setValue(screen.width());
   ui->spinBoxProjectorHeight->setValue(screen.height());
-
-  //QDialog* dialog = new QDialog(this);
-  //Ui::Display* display = new Ui::Display;
-  //display->setupUi(dialog);
-  //dialog->show();
-  //dialog->move(QPoint(screen.x(), screen.y()));
-  //dialog->resize(screen.width(), screen.height());
-  //dialog->showFullScreen();
 }
 
 
@@ -58,10 +50,12 @@ void ProCamCal::on_pushButtonStart_clicked()
   if(camera_->isOpened())
   {
     QRect screen = QApplication::desktop()->screenGeometry(ui->spinBoxProjectorID->value());
-    display->show();
-    display->move(QPoint(screen.x(), screen.y()));
-    display->resize(screen.width(), screen.height());
-    display->showFullScreen();
+
+    updatePattern();    
+    display_->show();    
+    display_->resize(screen.width(), screen.height());
+    display_->move(QPoint(screen.x(), screen.y()));
+    display_->showFullScreen();      
     ui->pushButtonStart->setEnabled(false);
     ui->pushButtonStop->setEnabled(true);
     timer_->start(10);
@@ -82,15 +76,28 @@ void ProCamCal::on_pushButtonStop_clicked()
     camera_ = 0;
   }
 
-  if(display->isVisible())
-  {
-    display->showNormal();
-    display->hide();
-  }
-
+  display_->showNormal();  
+  display_->hide();        
+  
   timer_->stop();
   ui->pushButtonStart->setEnabled(true);
   ui->pushButtonStop->setEnabled(false);
+}
+
+
+void ProCamCal::on_spinBoxPatternOffset_valueChanged(int value)
+{
+  updatePattern();
+}
+
+void ProCamCal::on_spinBoxPatternGap_valueChanged(int value)
+{
+  updatePattern();
+}
+
+void ProCamCal::on_spinBoxPatternSize_valueChanged(int value)
+{
+  updatePattern();
 }
 
 void ProCamCal::onTimerUpdate()
@@ -100,6 +107,36 @@ void ProCamCal::onTimerUpdate()
   cv::imshow("camera", frame);
   cv::waitKey(1);
 }
+
+void ProCamCal::updatePattern()
+{
+  QRect screen = QApplication::desktop()->screenGeometry(ui->spinBoxProjectorID->value());
+
+  display_pattern_ = getPattern(
+    screen.width(), screen.height(),    
+    ui->spinBoxPatternOffset->value(),
+    ui->spinBoxPatternGap->value(),
+    ui->spinBoxPatternSize->value());
+  display_ui->label->setPixmap(QPixmap::fromImage(display_pattern_));
+}
+
+QImage ProCamCal::getPattern(int w, int h, int offset, int gap, int radius)
+{
+  QPixmap pixmap(w, h);
+  pixmap.fill();
+  QPainter painter(&pixmap);
+  painter.setBrush(QBrush(Qt::black, Qt::SolidPattern));
+
+  for(int i = ui->spinBoxPatternOffset->value(); i < (w - ui->spinBoxPatternSize->value()); i+=ui->spinBoxPatternGap->value())
+  {
+    for(int j = ui->spinBoxPatternOffset->value(); j < (h - ui->spinBoxPatternSize->value()); j+=ui->spinBoxPatternGap->value())
+    {
+      painter.drawEllipse(QPoint(i, j), ui->spinBoxPatternSize->value(), ui->spinBoxPatternSize->value());
+    }
+  }
+  return pixmap.toImage();
+}
+
 
 int main(int argc, char *argv[])
 {
