@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="icons">
+    <file>chang.png</file>
+  </qresource>
+</RCC>
