@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 #include <opencv2/opencv.hpp>
+#include <QFuture>
+#include <QMutex>
 
 namespace Ui {
   class MainWindow;
@@ -26,7 +28,8 @@ protected slots:
   void on_spinBoxPatternGap_valueChanged(int value);
   void on_spinBoxPatternSize_valueChanged(int value);
   
-  void onTimerUpdate();
+  //thread function
+  void pipeLine();
 
 protected:
   void updatePattern();
@@ -34,12 +37,18 @@ protected:
 
 private:
   Ui::MainWindow *ui;
-  QTimer* timer_;
-
+  
   cv::VideoCapture* camera_;
   QDialog* display_;
   Ui::Display* display_ui;
   QImage display_pattern_;
+  int step_x_;
+  int step_y_;
+
+
+  QFuture<void> pipe_line_future_;
+  QMutex piep_line_mutex_;
+  bool pipe_line_stop_;
 };
 
 #endif
