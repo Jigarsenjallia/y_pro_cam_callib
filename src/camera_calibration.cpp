@@ -46,6 +46,8 @@ static void help()
           "Usage: calibration\n"
           "     -w <board_width>         # the number of inner corners per one of board dimension\n"
           "     -h <board_height>        # the number of inner corners per another board dimension\n"
+          "     -cw <camera width>\n"
+          "     -ch <camera height>\n"
           "     [-pt <pattern>]          # the type of pattern: chessboard or circles' grid\n"
           "     [-n <number_of_frames>]  # the number of frames to use for calibration\n"
           "                              # (if not specified, it will be set to the number\n"
@@ -67,7 +69,7 @@ static void help()
           "                              #  - text file with a list of the images of the board\n"
           "                              #    the text file can be generated with imagelist_creator\n"
           "                              #  - name of video file with a video of the board\n"
-          "                              # if input_data not specified, a live view from the camera is used\n"
+          "                              # if input_data not specified, a live view from the camera is used\n" 
           "\n" );
   printf("\n%s",usage);
   printf( "\n%s", liveCaptureHelp );

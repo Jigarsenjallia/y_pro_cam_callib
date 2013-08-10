@@ -28,10 +28,13 @@ protected slots:
   void on_spinBoxPatternGap_valueChanged(int value);
   void on_spinBoxPatternSize_valueChanged(int value);
   
+  void on_pushButtonLoadCameraParams_clicked();
+  void on_pushButtonDetectPlane_clicked();
+
+protected:
   //thread function
   void pipeLine();
 
-protected:
   void updatePattern();
   QImage getPattern(int w, int h, int offset, int gap, int radius);
 
@@ -44,6 +47,15 @@ private:
   QImage display_pattern_;
   int step_x_;
   int step_y_;
+  std::string calibration_time_;
+  int image_width_;
+  int image_height_;
+  int board_width_;
+  int board_height_;
+  double square_size_;
+  cv::Mat camera_matrix_;
+  cv::Mat camera_dist_coeff_;
+
 
 
   QFuture<void> pipe_line_future_;
