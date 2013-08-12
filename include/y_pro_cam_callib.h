@@ -20,16 +20,25 @@ public:
   ~ProCamCal();
 
 protected slots:
-  void on_spinBoxProjectorID_valueChanged(int value);
-  void on_pushButtonStart_clicked();
-  void on_pushButtonStop_clicked();
+  void on_pushButtonConnectCamera_clicked(); 
+  void on_pushButtonLoadCameraParams_clicked();
+  void on_pushButtonDetectPlane_clicked();
 
+  void on_spinBoxProjectorID_valueChanged(int value);
   void on_spinBoxPatternOffset_valueChanged(int value);
   void on_spinBoxPatternGap_valueChanged(int value);
   void on_spinBoxPatternSize_valueChanged(int value);
-  
-  void on_pushButtonLoadCameraParams_clicked();
-  void on_pushButtonDetectPlane_clicked();
+  void on_pushButtonShowPattern_clicked(bool checked);
+  void on_pushButtonCaptureFrame_clicked();
+  void on_pushButtonCalibrateProjector_clicked();
+  void on_pushButtonLoadProjectorParemeter_clicked();
+  void on_pushButtonProjectorDetectPlane_clicked();
+
+  void on_pushButtonStart_clicked();
+  void on_pushButtonStop_clicked();
+
+ 
+ 
 
 protected:
   //thread function
@@ -37,6 +46,12 @@ protected:
 
   void updatePattern();
   QImage getPattern(int w, int h, int offset, int gap, int radius);
+  
+  //from select3dobj.cpp
+  cv::Point3f image2plane(cv::Point2f imgpt, const cv::Mat& R, const cv::Mat& tvec, const cv::Mat& cameraMatrix, double Z);
+  void imagePoints2plane(const std::vector<cv::Point2f>& image_points, std::vector<cv::Point3f>& plane_points, 
+                         const cv::Mat& R, const cv::Mat& tvec, const cv::Mat& cameraMatrix, double Z);
+
 
 private:
   Ui::MainWindow *ui;
@@ -47,6 +62,7 @@ private:
   QImage display_pattern_;
   int step_x_;
   int step_y_;
+  std::vector<cv::Point2f> pattern_points_;
   std::string calibration_time_;
   int image_width_;
   int image_height_;
@@ -55,6 +71,17 @@ private:
   double square_size_;
   cv::Mat camera_matrix_;
   cv::Mat camera_dist_coeff_;
+  cv::Mat camera_rvec_;
+  cv::Mat camera_tvec_;
+  bool plan_detected_;
+  std::vector<std::vector<cv::Point3f> > projector_object_points_;
+  std::vector<std::vector<cv::Point2f> > projector_image_points_;
+  cv::Mat projector_matrix_;
+  cv::Mat projector_dist_coeff_;
+  cv::Mat projector_rvec_;
+  cv::Mat projector_tvec_;
+  
+
 
 
 

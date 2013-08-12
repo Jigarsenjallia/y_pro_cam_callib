@@ -20,3 +20,15 @@ distortion_coefficients: !!opencv-matrix
        -7.0206449355291281e-004, 4.2048443218115437e-003,
        3.6521816968525148e-002 ]
 avg_reprojection_error: 5.9897688046324271e-001
+
+rvec: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ -0.01189195183381637, -0.1358260492891299, 0.01286727335103235 ]
+
+tvec: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ -0.03546463788081627, 0.2190788193849179, 1.100095607585838 ]
