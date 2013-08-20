@@ -23,6 +23,8 @@ protected slots:
   void on_pushButtonConnectCamera_clicked(); 
   void on_pushButtonLoadCameraParams_clicked();
   void on_pushButtonDetectPlane_clicked();
+  void on_pushButtonUpdateCameraParameter_clicked();
+
 
   void on_spinBoxProjectorID_valueChanged(int value);
   void on_spinBoxPatternOffset_valueChanged(int value);
@@ -33,6 +35,8 @@ protected slots:
   void on_pushButtonCalibrateProjector_clicked();
   void on_pushButtonLoadProjectorParemeter_clicked();
   void on_pushButtonProjectorDetectPlane_clicked();
+  void on_pushButtonProjectorDetectPlane_clicked2();
+  void on_pushButtonSaveProjectorParameters_clicked();
 
   void on_pushButtonStart_clicked();
   void on_pushButtonStop_clicked();
@@ -43,9 +47,15 @@ protected slots:
 protected:
   //thread function
   void pipeLine();
+    
 
+  void detectProjectorCornerPattern();
+  
+  //pattern
   void updatePattern();
   QImage getPattern(int w, int h, int offset, int gap, int radius);
+  QImage getPattern(int w, int h, int offset);
+
   
   //from select3dobj.cpp
   cv::Point3f image2plane(cv::Point2f imgpt, const cv::Mat& R, const cv::Mat& tvec, const cv::Mat& cameraMatrix, double Z);
@@ -69,18 +79,25 @@ private:
   int board_width_;
   int board_height_;
   double square_size_;
+  int flags_;
+  double avg_reprojection_error_;
+  QString camera_parameter_filename_;
   cv::Mat camera_matrix_;
   cv::Mat camera_dist_coeff_;
   cv::Mat camera_rvec_;
   cv::Mat camera_tvec_;
+  bool camera_parameter_loaded_;
   bool plan_detected_;
   std::vector<std::vector<cv::Point3f> > projector_object_points_;
   std::vector<std::vector<cv::Point2f> > projector_image_points_;
+
+  QString projector_parameter_filename_;
   cv::Mat projector_matrix_;
   cv::Mat projector_dist_coeff_;
   cv::Mat projector_rvec_;
   cv::Mat projector_tvec_;
   
+  std::vector<cv::Point2f> projected_corner_points_;
 
 
 

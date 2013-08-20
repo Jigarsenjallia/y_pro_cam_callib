@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>302</width>
-    <height>473</height>
+    <height>453</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -25,6 +25,24 @@
        <string>Camera</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_4">
+         <item>
+          <widget class="QLabel" name="label_15">
+           <property name="text">
+            <string>Load Calibration Parameters</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButtonLoadCameraParams">
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
@@ -194,42 +212,22 @@
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <layout class="QHBoxLayout" name="horizontalLayout_11">
          <item>
-          <widget class="QLabel" name="label_15">
+          <widget class="QPushButton" name="pushButtonDetectPlane">
            <property name="text">
-            <string>Load Calibration Parameters</string>
+            <string>Detect plane</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="pushButtonLoadCameraParams">
+          <widget class="QPushButton" name="pushButtonUpdateCameraParameter">
            <property name="text">
-            <string>...</string>
+            <string>Update Parameters</string>
            </property>
           </widget>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer_2">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
          </item>
         </layout>
-       </item>
-       <item>
-        <widget class="QPushButton" name="pushButtonDetectPlane">
-         <property name="text">
-          <string>Detect plane</string>
-         </property>
-        </widget>
        </item>
       </layout>
      </widget>
@@ -241,15 +239,18 @@
       </property>
       <layout class="QVBoxLayout" name="verticalLayout">
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
-         <item>
+        <layout class="QGridLayout" name="gridLayout">
+         <item row="0" column="0">
           <widget class="QLabel" name="label_2">
            <property name="text">
             <string>ID</string>
            </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
           </widget>
          </item>
-         <item>
+         <item row="0" column="1">
           <widget class="QSpinBox" name="spinBoxProjectorID">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -259,43 +260,17 @@
            </property>
           </widget>
          </item>
-         <item>
-          <widget class="QLabel" name="label_5">
-           <property name="text">
-            <string>w</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QSpinBox" name="spinBoxProjectorWidth">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-           <property name="minimum">
-            <number>320</number>
-           </property>
-           <property name="maximum">
-            <number>4096</number>
-           </property>
-           <property name="value">
-            <number>640</number>
-           </property>
-          </widget>
-         </item>
-         <item>
+         <item row="0" column="5">
           <widget class="QLabel" name="label_6">
            <property name="text">
             <string>h</string>
            </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
           </widget>
          </item>
-         <item>
+         <item row="0" column="6">
           <widget class="QSpinBox" name="spinBoxProjectorHeight">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -317,18 +292,17 @@
            </property>
           </widget>
          </item>
-        </layout>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_5">
-         <item>
+         <item row="1" column="0">
           <widget class="QLabel" name="label_7">
            <property name="text">
             <string>Offset</string>
            </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
           </widget>
          </item>
-         <item>
+         <item row="1" column="1">
           <widget class="QSpinBox" name="spinBoxPatternOffset">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -347,14 +321,17 @@
            </property>
           </widget>
          </item>
-         <item>
+         <item row="1" column="2" colspan="2">
           <widget class="QLabel" name="label_8">
            <property name="text">
             <string> Gap</string>
            </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
           </widget>
          </item>
-         <item>
+         <item row="1" column="4">
           <widget class="QSpinBox" name="spinBoxPatternGap">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -373,14 +350,17 @@
            </property>
           </widget>
          </item>
-         <item>
+         <item row="1" column="5">
           <widget class="QLabel" name="label_9">
            <property name="text">
             <string> Size</string>
            </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
           </widget>
          </item>
-         <item>
+         <item row="1" column="6">
           <widget class="QSpinBox" name="spinBoxPatternSize">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -399,10 +379,35 @@
            </property>
           </widget>
          </item>
-         <item>
-          <widget class="QLabel" name="label_11">
+         <item row="0" column="4">
+          <widget class="QSpinBox" name="spinBoxProjectorWidth">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+           <property name="minimum">
+            <number>320</number>
+           </property>
+           <property name="maximum">
+            <number>4096</number>
+           </property>
+           <property name="value">
+            <number>640</number>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2" colspan="2">
+          <widget class="QLabel" name="label_5">
            <property name="text">
-            <string>px</string>
+            <string>w</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
            </property>
           </widget>
          </item>
@@ -418,7 +423,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QComboBox" name="comboBox">
+          <widget class="QComboBox" name="comboBoxPatternType">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -432,32 +437,22 @@
            </item>
            <item>
             <property name="text">
-             <string>Chessboard</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Asymmetric Circles</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Rigns</string>
+             <string>Four corners</string>
             </property>
            </item>
           </widget>
          </item>
+         <item>
+          <widget class="QPushButton" name="pushButtonShowPattern">
+           <property name="text">
+            <string>Show</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
         </layout>
-       </item>
-       <item>
-        <widget class="QPushButton" name="pushButtonShowPattern">
-         <property name="text">
-          <string>Show Pattern</string>
-         </property>
-         <property name="checkable">
-          <bool>true</bool>
-         </property>
-        </widget>
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_8">
@@ -472,6 +467,24 @@
           <widget class="QPushButton" name="pushButtonCalibrateProjector">
            <property name="text">
             <string>Calibrate</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_10">
+         <item>
+          <widget class="QPushButton" name="pushButtonProjectorDetectPlane">
+           <property name="text">
+            <string>Detect plane</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButtonSaveProjectorParameters">
+           <property name="text">
+            <string>Save Parameters</string>
            </property>
           </widget>
          </item>
@@ -494,13 +507,6 @@
           </widget>
          </item>
         </layout>
-       </item>
-       <item>
-        <widget class="QPushButton" name="pushButtonProjectorDetectPlane">
-         <property name="text">
-          <string>Detect plane</string>
-         </property>
-        </widget>
        </item>
       </layout>
      </widget>
@@ -550,7 +556,7 @@
      <x>0</x>
      <y>0</y>
      <width>302</width>
-     <height>21</height>
+     <height>24</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

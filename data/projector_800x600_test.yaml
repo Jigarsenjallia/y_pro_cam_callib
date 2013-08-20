@@ -1,0 +1,32 @@
+%YAML:1.0
+calibration_time: "08/20/13 12:11:15"
+projector_width: 800
+projector_height: 600
+pattern_offset: 50
+pattern_gap: 80
+pattern_size: 20
+projector_matrix: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [ 1.4717434981179420e+003, 0., 4.1862335898913102e+002, 0.,
+       1.4759710874616419e+003, 6.4799853888589485e+002, 0., 0., 1. ]
+distortion_coefficients: !!opencv-matrix
+   rows: 5
+   cols: 1
+   dt: d
+   data: [ -1.0733722792555909e-001, 1.4135162046235331e-001,
+       -2.8400058810416750e-003, 2.9475911570343832e-003,
+       -1.3186210059932121e-001 ]
+rvec: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ -1.1908096104287946e-001, 5.9737044308716880e-001,
+       1.9539977922766805e-001 ]
+tvec: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ -3.5671717983589768e-001, -4.1755888158203236e-001,
+       1.1494621062012862e+000 ]

@@ -1,7 +1,7 @@
 #include <y_pro_cam_callib.h>
 #include <QtGui>
 #include <QDebug>
-
+#include <time.h>
 
 #include "ui_main_window.h"
 #include "ui_display.h"
@@ -10,6 +10,7 @@ ProCamCal::ProCamCal(QMainWindow *parent) :
   QMainWindow(parent),
   ui(new Ui::MainWindow),
   camera_(0),
+  camera_parameter_loaded_(false),
   plan_detected_(false)
 {
   ui->setupUi(this);
@@ -22,6 +23,7 @@ ProCamCal::ProCamCal(QMainWindow *parent) :
   display_ = new QDialog(this);
   display_ui = new Ui::Display;
   display_ui->setupUi(display_);
+   
 }
 
 ProCamCal::~ProCamCal()
@@ -36,8 +38,6 @@ ProCamCal::~ProCamCal()
   delete ui;
   QApplication::closeAllWindows();
 }
-
-
 
 void ProCamCal::on_pushButtonConnectCamera_clicked()
 {
@@ -71,15 +71,14 @@ void ProCamCal::on_pushButtonConnectCamera_clicked()
   }
 }
 
-
 void ProCamCal::on_pushButtonLoadCameraParams_clicked()
 {
-  QString filename = QFileDialog::getOpenFileName(this);
-  if(filename.isNull())
+  camera_parameter_filename_ = QFileDialog::getOpenFileName(this);
+  if(camera_parameter_filename_.isNull())
     return;
-  qDebug() << filename;
+  qDebug() << "Load camera parameters from: " << camera_parameter_filename_;
 
-  cv::FileStorage file(filename.toStdString(), cv::FileStorage::READ);
+  cv::FileStorage file(camera_parameter_filename_.toStdString(), cv::FileStorage::READ);
 
   // first method: use (type) operator on FileNode.
   file["calibration_time"] >> calibration_time_;
@@ -88,10 +87,16 @@ void ProCamCal::on_pushButtonLoadCameraParams_clicked()
   file["board_width"] >> board_width_;
   file["board_height"] >> board_height_;
   file["square_size"] >> square_size_;
+  file["flags"] >> flags_;
   file["camera_matrix"] >> camera_matrix_;
   file["distortion_coefficients"] >> camera_dist_coeff_;
-  file["rvec"] >> camera_rvec_;
-  file["tvec"] >> camera_tvec_;
+  file["avg_reprojection_error"] >> avg_reprojection_error_;
+
+  camera_rvec_ = cv::Mat::zeros(3, 1, CV_64F);
+  camera_tvec_ = cv::Mat::zeros(3, 1, CV_64F);
+
+  if(!file["rvec"].isNone()) file["rvec"] >> camera_rvec_; 
+  if(!file["tvec"].isNone()) file["tvec"] >> camera_tvec_;
 
   std::cout 
     << "calibration_time: " << calibration_time_ << std::endl
@@ -100,11 +105,45 @@ void ProCamCal::on_pushButtonLoadCameraParams_clicked()
     << "board_width: " << board_width_ << std::endl
     << "board_height: " << board_height_ << std::endl
     << "square_size: " << square_size_ << std::endl
+    << "flags:" << flags_ << std::endl
     << "camera_matrix: " << camera_matrix_ << std::endl
     << "distortion_coefficients: " << camera_dist_coeff_ << std::endl
+    << "avg_reprojection_error: " << avg_reprojection_error_ << std::endl
     << "rvec" << camera_rvec_ << std::endl
     << "tvec" << camera_tvec_ << std::endl;
   file.release();
+
+  camera_parameter_loaded_ = true;
+}
+
+void ProCamCal::on_pushButtonUpdateCameraParameter_clicked()
+{
+  QString filename = QFileDialog::getSaveFileName(this);
+  if(filename.isNull())
+    return;
+  camera_parameter_filename_ = filename;
+  cv::FileStorage fs(camera_parameter_filename_.toStdString(), cv::FileStorage::WRITE);
+
+  time_t tt;
+  time( &tt );
+  struct tm *t2 = localtime( &tt );
+  char buf[1024];
+  strftime( buf, sizeof(buf)-1, "%c", t2 );
+  
+  fs << "calibration_time" << buf;
+  fs << "image_width" << image_width_;
+  fs << "image_height" << image_height_;
+  fs << "board_width" << board_width_;
+  fs << "board_height" << board_height_;
+  fs << "square_size" << square_size_;
+  fs << "flags" << flags_;
+  fs << "camera_matrix" << camera_matrix_;
+  fs << "distortion_coefficients" << camera_dist_coeff_;
+  fs << "avg_reprojection_error" << avg_reprojection_error_;
+  fs <<  "rvec" << camera_rvec_; 
+  fs <<  "tvec" << camera_tvec_; 
+
+  fs.release();  
 }
 
 void ProCamCal::on_pushButtonDetectPlane_clicked()
@@ -118,50 +157,71 @@ void ProCamCal::on_pushButtonDetectPlane_clicked()
   (*camera_) >> frame;
   cvtColor(frame, frame_gray, CV_BGR2GRAY);
 
-
-
   bool camera_found = false;   
   std::vector<cv::Point2f> camera_found_points;
   cv::Size camera_pattern_size = cv::Size(ui->spinBoxCameraPatternWidth->value(), ui->spinBoxCameraPatternHeight->value());    
   camera_found = cv::findChessboardCorners( frame, camera_pattern_size, camera_found_points,
     CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FAST_CHECK | CV_CALIB_CB_NORMALIZE_IMAGE);
 
+  if(!camera_found) 
+  {
+    ui->pushButtonDetectPlane->setText("Detect plane - Failed!");
+    return; 
+  }
+
   // improve the found corners' coordinate accuracy
-  if(camera_found) 
+  cv::cornerSubPix( frame_gray, camera_found_points, cv::Size(11,11), cv::Size(-1,-1), cv::TermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 30, 0.1 ));
+  //cv::drawChessboardCorners( frame, camera_pattern_size, cv::Mat(camera_found_points), camera_found);
+  std::vector<cv::Point3f> object_points;
+  for(int j = 0; j < ui->spinBoxCameraPatternHeight->value(); j++)
   {
-    cv::cornerSubPix( frame_gray, camera_found_points, cv::Size(11,11), cv::Size(-1,-1), cv::TermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 30, 0.1 ));
-  }
-
-  if(camera_found)
-  {
-    cv::drawChessboardCorners( frame, camera_pattern_size, cv::Mat(camera_found_points), camera_found);
-  }
-
-  if(camera_found)
-  {
-    std::vector<cv::Point3f> object_points;
-    for(int j = 0; j < ui->spinBoxCameraPatternHeight->value(); j++)
+    for(int i = 0; i < ui->spinBoxCameraPatternWidth->value(); i++)
     {
-      for(int i = 0; i < ui->spinBoxCameraPatternWidth->value(); i++)
-      {
-        object_points.push_back(cv::Point3f(i*ui->spinBoxCameraPatternSize->value(), j*ui->spinBoxCameraPatternSize->value(), 0));
-        std::cout << object_points.back() << std::endl;
-      }
+      object_points.push_back(cv::Point3f(i*ui->spinBoxCameraPatternSize->value(), j*ui->spinBoxCameraPatternSize->value(), 0));
+      //std::cout << object_points.back() << std::endl;
     }
-
-    cv::solvePnP(object_points, camera_found_points, camera_matrix_, camera_dist_coeff_, camera_rvec_, camera_tvec_);
-    std::cout << "rvec:" << camera_rvec_ << std::endl;
-    std::cout << "tvec:" << camera_tvec_ << std::endl;
-
-    plan_detected_ = true;
-
-    ui->pushButtonDetectPlane->setText("Detect plane - Done!");
-    cv::imshow("detect_plane", frame);
   }
-  else
+
+  cv::solvePnP(object_points, camera_found_points, camera_matrix_, camera_dist_coeff_, camera_rvec_, camera_tvec_);
+  
+  std::cout << "camera rvec:" << camera_rvec_ << std::endl;
+  std::cout << "camera tvec:" << camera_tvec_ << std::endl;
+
+  plan_detected_ = true;
+
+
+
+  std::vector<cv::Point3f> target_points;
+  std::vector<cv::Point2f> image_points;
+  target_points.push_back(cv::Point3f(0, 0, 0));
+  target_points.push_back(cv::Point3f(0.3, 0, 0));
+  target_points.push_back(cv::Point3f(0, 0.3, 0));
+  target_points.push_back(cv::Point3f(0, 0, 0.3));
+
+  target_points.push_back(cv::Point3f(0.5, 0.2, 0));
+  
+  
+  cv::projectPoints(
+    target_points, 
+    camera_rvec_, 
+    camera_tvec_, 
+    camera_matrix_,
+    camera_dist_coeff_,
+    image_points);
+
+  for(int i = 4; i < target_points.size(); i++)
   {
-     ui->pushButtonDetectPlane->setText("Detect plane - Failed!");
+    std::cout << target_points[i] << image_points[i] << std::endl;
+    cv::circle(frame, image_points[i], 5, CV_RGB(255, 0, 0), 2);
   }
+
+  cv::line(frame, image_points[0], image_points[1], CV_RGB(255, 0, 0), 2);
+  cv::line(frame, image_points[0], image_points[2], CV_RGB(0, 255, 0), 2);
+  cv::line(frame, image_points[0], image_points[3], CV_RGB(0, 0, 255), 2);
+
+  ui->pushButtonDetectPlane->setText("Detect plane - Done!");
+  cv::imshow("detect_plane", frame);
+ 
 }
 
 void ProCamCal::on_spinBoxProjectorID_valueChanged(int value)
@@ -220,37 +280,39 @@ void ProCamCal::on_pushButtonCaptureFrame_clicked()
   cv::Size projector_pattern_size = cv::Size(step_x_, step_y_);
   projector_found = cv::findCirclesGrid( frame_gray_neg, projector_pattern_size, projector_points, cv::CALIB_CB_SYMMETRIC_GRID);
     
-  if(projector_found)
-  { 
-    cv::drawChessboardCorners( frame_undistorted, projector_pattern_size, cv::Mat(projector_points), projector_found);
-    cv::circle(frame_undistorted, projector_points[0], 8, CV_RGB(0, 255, 0), 2);
-    //compute position on plane
-    cv::Mat R;
-    cv::Rodrigues(camera_rvec_, R);
-    std::vector<cv::Point3f> plane_points;
-    imagePoints2plane(projector_points, plane_points, R, camera_tvec_, camera_matrix_, 0.0);
-#if 1
-    cv::Point3f start_point = plane_points[0];
-    for(int i = 0; i < plane_points.size(); i++)
-    {
-      std::cout << projector_points[i] << plane_points[i];
-      plane_points[i].x -=  start_point.x;
-      plane_points[i].y -=  start_point.y;
-      plane_points[i].z -=  start_point.z;
-      std::cout << plane_points[i] << std::endl;
-    } 
-#endif
-    projector_object_points_.push_back(plane_points);
-    projector_image_points_.push_back(pattern_points_);
 
-    ui->pushButtonCaptureFrame->setText(QString("Capture (%1)").arg(projector_object_points_.size()));
 
-    cv::imshow("pattern", frame_undistorted);
-  }
-  else
+
+  if(!projector_found)
   {
-
+    return;
   }
+
+  cv::drawChessboardCorners( frame_undistorted, projector_pattern_size, cv::Mat(projector_points), projector_found);
+  cv::circle(frame_undistorted, projector_points[0], 8, CV_RGB(0, 255, 0), 2);
+  //compute position on plane
+  cv::Mat R;
+  cv::Rodrigues(camera_rvec_, R);
+  std::vector<cv::Point3f> plane_points;
+  imagePoints2plane(projector_points, plane_points, R, camera_tvec_, camera_matrix_, 0.0);
+#if 1
+  cv::Point3f start_point = plane_points[0];
+  for(int i = 0; i < plane_points.size(); i++)
+  {
+    std::cout << projector_points[i] << plane_points[i];
+    plane_points[i].x -=  start_point.x;
+    plane_points[i].y -=  start_point.y;
+    plane_points[i].z -=  start_point.z;
+    std::cout << plane_points[i] << std::endl;
+  } 
+#endif
+  projector_object_points_.push_back(plane_points);
+  projector_image_points_.push_back(pattern_points_);
+
+  ui->pushButtonCaptureFrame->setText(QString("Capture (%1)").arg(projector_object_points_.size()));
+
+  cv::imshow("pattern", frame_undistorted);
+ 
 }
 
 double computeReprojectionErrors(
@@ -302,23 +364,10 @@ void ProCamCal::on_pushButtonCalibrateProjector_clicked()
     rvecs, 
     tvecs, 
     CV_CALIB_FIX_K4 | CV_CALIB_FIX_K5);
-  ///*|CV_CALIB_FIX_K3*/|CV_CALIB_FIX_K4|CV_CALIB_FIX_K5);
+
   printf("RMS error reported by calibrateCamera: %g\n", rms);
   std::cout << projector_camera_matrix << std::endl;
   std::cout << projector_camera_dist_coeffs << std::endl;
-
-  std::vector<float> perviewerrors;
-  float error = computeReprojectionErrors(
-    projector_object_points_,
-    projector_image_points_,
-    rvecs,
-    tvecs,
-    projector_camera_matrix,
-    projector_camera_dist_coeffs,
-    perviewerrors);
-  std::cout << "average error:" << error <<  std::endl;
-
-
 }
 
 void ProCamCal::on_pushButtonLoadProjectorParemeter_clicked()
@@ -333,11 +382,9 @@ void ProCamCal::on_pushButtonLoadProjectorParemeter_clicked()
   file["camera_matrix"] >> projector_matrix_;
   file["distortion_coefficients"] >> projector_dist_coeff_;
 
-  std::cout << projector_matrix_ << std::endl;
-  std::cout << projector_matrix_.inv() << std::endl;
-  
+  std::cout << projector_matrix_ << std::endl;    
   std::cout << projector_dist_coeff_ << std::endl;
-#if 1
+#if 0
   projector_rvec_ = cv::Mat::zeros(3, 1, CV_32F);
   projector_tvec_ = cv::Mat::zeros(3, 1, CV_32F);
   std::cout << projector_rvec_ << projector_tvec_ << std::endl;
@@ -350,31 +397,7 @@ void ProCamCal::on_pushButtonLoadProjectorParemeter_clicked()
   object_points.push_back(cv::Point3f(0, -0.2, 0));
   object_points.push_back(cv::Point3f(0, -0.3, 0));
   object_points.push_back(cv::Point3f(0, -0.4, 0));
-  //object_points.push_back(cv::Point3f(0, -0.5, 0));
-  
-  //object_points.push_back(cv::Point3f(0.2, 0.2, -1.0));
-  //object_points.push_back(cv::Point3f(-0.2, 0.2, 0));
-  //object_points.push_back(cv::Point3f(-0.2, -0.2, 0));
-  //object_points.push_back(cv::Point3f(0.2, -0.2, 0));
-  
-  //object_points.push_back(cv::Point3f(0.4, -0.4, 0));
-  //object_points.push_back(cv::Point3f(0.4, 0.4, 0));
-  
-  //object_points.push_back(cv::Point3f(0.4, 0.4, -1.0));
-  //object_points.push_back(cv::Point3f(0.4, 0.4, -0.5));
-  //object_points.push_back(cv::Point3f(0.4, 0.4, -0.2));
-  //object_points.push_back(cv::Point3f(0.4, 0.4, -0.1));
-  //object_points.push_back(cv::Point3f(0.4, 0.4,  0.2));
-  //object_points.push_back(cv::Point3f(0.4, 0.4,  0.5));
-  //object_points.push_back(cv::Point3f(0.4, 0.4,  1.0));
-
-  
-  
-  //object_points.push_back(cv::Point3f(0.2, -0.2, -0.1));
-  //object_points.push_back(cv::Point3f(0.2, -0.2, 0.1));
-  //object_points.push_back(cv::Point3f(0.2, -0.2, 0.2));
-  //object_points.push_back(cv::Point3f(0.2, -0.2, -0.2));
-  
+ 
   
   cv::projectPoints(
     object_points, 
@@ -400,6 +423,87 @@ void ProCamCal::on_pushButtonProjectorDetectPlane_clicked()
 {
   QMutexLocker lock(&piep_line_mutex_);
 
+  if(projected_corner_points_.size() != 4)
+    return;
+
+  cv::Mat frame, frame_undistorted, frame_gray, frame_gray_neg;
+  (*camera_) >> frame;
+  cv::undistort(frame, frame_undistorted, camera_matrix_, camera_dist_coeff_);
+  cvtColor(frame_undistorted, frame_gray, CV_BGR2GRAY);
+  
+  // improve the found corners' coordinate accuracy
+  cv::cornerSubPix( frame_gray, projected_corner_points_, cv::Size(11,11), cv::Size(-1,-1), cv::TermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 30, 0.1 ));
+  
+  for(size_t i = 0; i < projected_corner_points_.size(); i++)
+    std::cout << projected_corner_points_[i] << std::endl;
+
+  //compute position on plane
+  cv::Mat R;
+  cv::Rodrigues(camera_rvec_, R);
+  std::vector<cv::Point3f> plane_points;
+  imagePoints2plane(projected_corner_points_, plane_points, R, camera_tvec_, camera_matrix_, 0.0);
+
+  for(int i = 0; i < plane_points.size(); i++)
+  {
+    std::cout << plane_points[i];
+    plane_points[i].x -=  plane_points[0].x;
+    plane_points[i].y -=  plane_points[0].y;
+    plane_points[i].z -=  plane_points[0].z;
+    std::cout << plane_points[i] << std::endl;
+  }
+
+  cv::solvePnP(
+    plane_points, 
+    pattern_points_, 
+    projector_matrix_, 
+    projector_dist_coeff_, 
+    projector_rvec_, 
+    projector_tvec_);
+
+  std::cout << "projector_rvec:" << projector_rvec_ << std::endl;
+  std::cout << "projector_tvec:" << projector_tvec_ << std::endl;
+
+
+
+  std::vector<cv::Point3f> target_points;
+  std::vector<cv::Point2f> image_points;  
+  target_points.push_back(cv::Point3f(0.5, 0.2, 0));
+  target_points.push_back(cv::Point3f(0.4, 0.2, 0));
+  target_points.push_back(cv::Point3f(0.5, 0.1, 0));
+
+  //target_points.push_back(cv::Point3f(0.5, 0.2, 0.2));
+  
+  
+  
+  cv::projectPoints(
+    target_points, 
+    projector_rvec_, 
+    projector_tvec_,
+    projector_matrix_,
+    projector_dist_coeff_,
+    image_points);
+
+  
+  QPixmap pixmap(ui->spinBoxProjectorWidth->value(), ui->spinBoxProjectorHeight->value());
+  pixmap.fill(Qt::black);
+  QPainter painter(&pixmap);
+  painter.setBrush(QBrush(Qt::white, Qt::SolidPattern));
+
+
+  for(int i = 0; i < image_points.size(); i++)
+  {
+    std::cout << target_points[i] << image_points[i] << std::endl;
+    painter.drawEllipse(QPoint(image_points[i].x, image_points[i].y), 20, 20);
+  }
+
+  display_ui->label->setPixmap(pixmap);
+
+}
+
+void ProCamCal::on_pushButtonProjectorDetectPlane_clicked2()
+{
+  QMutexLocker lock(&piep_line_mutex_);
+
   cv::Mat frame, frame_undistorted, frame_gray, frame_gray_neg;
   (*camera_) >> frame;
   cv::undistort(frame, frame_undistorted, camera_matrix_, camera_dist_coeff_);
@@ -421,15 +525,6 @@ void ProCamCal::on_pushButtonProjectorDetectPlane_clicked()
     std::vector<cv::Point3f> plane_points;
     imagePoints2plane(projector_points, plane_points, R, camera_tvec_, camera_matrix_, 0.0);
 
-    //for(int i = 0; i < plane_points.size(); i++)
-    //{
-      //std::cout << plane_points[i];
-      //plane_points[i].x -=  plane_points[0].x;
-      //plane_points[i].y -=  plane_points[0].y;
-      //plane_points[i].z -=  plane_points[0].z;
-      //std::cout << plane_points[i] << std::endl;
-    //}
-
     cv::solvePnP(
       plane_points, 
       pattern_points_, 
@@ -444,6 +539,34 @@ void ProCamCal::on_pushButtonProjectorDetectPlane_clicked()
   }
 }
 
+void ProCamCal::on_pushButtonSaveProjectorParameters_clicked()
+{
+  QString filename = QFileDialog::getSaveFileName(this);
+  if(filename.isNull())
+    return;
+  projector_parameter_filename_ = filename;
+  cv::FileStorage fs(projector_parameter_filename_.toStdString(), cv::FileStorage::WRITE);
+
+  time_t tt;
+  time( &tt );
+  struct tm *t2 = localtime( &tt );
+  char buf[1024];
+  strftime( buf, sizeof(buf)-1, "%c", t2 );
+  
+  fs << "calibration_time" << buf;
+  fs << "projector_width" << ui->spinBoxProjectorWidth->value();
+  fs << "projector_height" << ui->spinBoxProjectorHeight->value();
+  fs << "pattern_offset" << ui->spinBoxPatternOffset->value();
+  fs << "pattern_gap" << ui->spinBoxPatternGap->value();
+  fs << "pattern_size" << ui->spinBoxPatternSize->value();
+  fs << "projector_matrix" << projector_matrix_;
+  fs << "distortion_coefficients" << projector_dist_coeff_;
+  fs <<  "rvec" << projector_rvec_; 
+  fs <<  "tvec" << projector_tvec_; 
+
+  fs.release();  
+}
+
 void ProCamCal::on_pushButtonStart_clicked()
 {
   ui->pushButtonStart->setEnabled(false);
@@ -456,12 +579,33 @@ void ProCamCal::on_pushButtonStop_clicked()
   ui->pushButtonStop->setEnabled(false);
 }
 
+void cvMouseCallBack(int event, int x, int y, int flags, void* userdata)
+{
+  if((event == cv::EVENT_LBUTTONDOWN) && (flags & cv::EVENT_FLAG_CTRLKEY))
+  {
+    qDebug() << event << flags << x << y;
 
+    std::vector<cv::Point2f>* ptr = (std::vector<cv::Point2f>*)userdata;
 
-
+    if(ptr->size() == 4)
+    {
+      ptr->clear();
+    }
+    ptr->push_back(cv::Point2f(x, y));
+  }
+}
 
 void ProCamCal::pipeLine()
 {
+  cv::Mat frame, frame_undistroted;
+  piep_line_mutex_.lock();
+  (*camera_) >> frame;
+  piep_line_mutex_.unlock();
+
+  cv::imshow("camera", frame);
+  cv::setMouseCallback("camera", cvMouseCallBack, &(this->projected_corner_points_));
+  
+
   while(!pipe_line_stop_)
   {
     cv::waitKey(1);
@@ -469,11 +613,19 @@ void ProCamCal::pipeLine()
     if(camera_ == 0)  
       continue;
 
-    cv::Mat frame, frame_gray, frame_gray_not;
-
     piep_line_mutex_.lock();
     (*camera_) >> frame;
     piep_line_mutex_.unlock();
+
+    if(camera_parameter_loaded_)
+    {
+      cv::undistort(frame, frame_undistroted, camera_matrix_, camera_dist_coeff_);
+      frame = frame_undistroted;
+    }
+
+
+    for(size_t i = 0; i < projected_corner_points_.size(); i++)
+      cv::circle(frame, projected_corner_points_[i], 5, projected_corner_points_.size() == 4 ? CV_RGB(0, 255, 0) : CV_RGB(255, 0, 0));
  
     cv::imshow("camera", frame);
   }
@@ -483,13 +635,23 @@ void ProCamCal::updatePattern()
 {
   QRect screen = QApplication::desktop()->screenGeometry(ui->spinBoxProjectorID->value());
 
-  display_pattern_ = getPattern(
-    screen.width(), screen.height(),
-    ui->spinBoxPatternOffset->value(),
-    ui->spinBoxPatternGap->value(),
-    ui->spinBoxPatternSize->value());
+  if(ui->comboBoxPatternType->currentText() == "Circles") 
+  {
+  
+    display_pattern_ = getPattern(
+      screen.width(), screen.height(),
+      ui->spinBoxPatternOffset->value(),
+      ui->spinBoxPatternGap->value(),
+      ui->spinBoxPatternSize->value());
+  }
+  else
+  {
+    display_pattern_ = getPattern(
+      screen.width(), screen.height(),
+      ui->spinBoxPatternOffset->value());
+  }
+  
   display_ui->label->setPixmap(QPixmap::fromImage(display_pattern_));
-  display_pattern_.save("test.png");
 }
 
 QImage ProCamCal::getPattern(int w, int h, int offset, int gap, int size)
@@ -515,6 +677,39 @@ QImage ProCamCal::getPattern(int w, int h, int offset, int gap, int size)
   return pixmap.toImage();
 }
 
+
+QImage ProCamCal::getPattern(int w, int h, int offset)
+{
+  QPixmap pixmap(w, h);
+  pixmap.fill(Qt::black);
+  QPainter painter(&pixmap);
+  painter.setBrush(QBrush(Qt::white, Qt::SolidPattern));
+
+  pattern_points_.clear(); 
+  pattern_points_.push_back(cv::Point2f(offset, offset));
+  pattern_points_.push_back(cv::Point2f(w - offset - 1, offset));
+  pattern_points_.push_back(cv::Point2f(offset,  h - (offset) - 1));
+  pattern_points_.push_back(cv::Point2f(w - offset - 1,  h - (offset) - 1));
+  
+  //upper left
+  painter.drawRect(offset, 0, offset, offset);
+  painter.drawRect(0, offset, offset, offset);
+
+  //upper right
+  painter.drawRect(w - offset - 1, 0, offset, offset);
+  painter.drawRect(w - (offset*2) - 1, offset, offset, offset);
+
+  //lower left
+  painter.drawRect(offset, h - (offset*2) - 1, offset, offset);
+  painter.drawRect(0, h - (offset) - 1, offset, offset);
+
+  //lower right
+  painter.drawRect(w - offset - 1, h - (offset*2) - 1, offset, offset);
+  painter.drawRect(w - (offset*2) - 1,  h - (offset) - 1, offset, offset);
+
+  return pixmap.toImage();
+}
+
 cv::Point3f ProCamCal::image2plane(cv::Point2f imgpt, const cv::Mat& R, const cv::Mat& tvec, const cv::Mat& cameraMatrix, double Z)
 {
   cv::Mat R1 = R.clone();
@@ -529,17 +724,15 @@ void ProCamCal::imagePoints2plane(const std::vector<cv::Point2f>& image_points, 
 {
   cv::Mat R1 = R.clone();
   R1.col(2) = R1.col(2)*Z + tvec;
-  std::cout << R1 << std::endl;
   plane_points.clear();
+  cv::Mat mat = (cameraMatrix*R1).inv();
   for(int i = 0; i < image_points.size(); i++)
   {
-    cv::Mat_<double> v = (cameraMatrix*R1).inv()*(cv::Mat_<double>(3,1) << image_points[i].x, image_points[i].y, 1);
+    cv::Mat_<double> v = mat*(cv::Mat_<double>(3,1) << image_points[i].x, image_points[i].y, 1);
     double iw = fabs(v(2,0)) > DBL_EPSILON ? 1./v(2,0) : 0;
     plane_points.push_back(cv::Point3f((float)(v(0,0)*iw), (float)(v(1,0)*iw), (float)Z));
   }
 }
-
-
 
 int main(int argc, char *argv[])
 {
