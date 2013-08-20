@@ -6,6 +6,8 @@
 #include "ui_main_window.h"
 #include "ui_display.h"
 
+#define SHOW_DEBUG 0
+
 ProCamCal::ProCamCal(QMainWindow *parent) :
   QMainWindow(parent),
   ui(new Ui::MainWindow),
@@ -194,11 +196,9 @@ void ProCamCal::on_pushButtonDetectPlane_clicked()
   std::vector<cv::Point3f> target_points;
   std::vector<cv::Point2f> image_points;
   target_points.push_back(cv::Point3f(0, 0, 0));
-  target_points.push_back(cv::Point3f(0.3, 0, 0));
-  target_points.push_back(cv::Point3f(0, 0.3, 0));
-  target_points.push_back(cv::Point3f(0, 0, 0.3));
-
-  target_points.push_back(cv::Point3f(0.5, 0.2, 0));
+  target_points.push_back(cv::Point3f(0.1, 0, 0));
+  target_points.push_back(cv::Point3f(0, 0.1, 0));
+  target_points.push_back(cv::Point3f(0, 0, 0.1));
   
   
   cv::projectPoints(
@@ -209,11 +209,11 @@ void ProCamCal::on_pushButtonDetectPlane_clicked()
     camera_dist_coeff_,
     image_points);
 
-  for(int i = 4; i < target_points.size(); i++)
-  {
-    std::cout << target_points[i] << image_points[i] << std::endl;
-    cv::circle(frame, image_points[i], 5, CV_RGB(255, 0, 0), 2);
-  }
+  //for(int i = 4; i < target_points.size(); i++)
+  //{
+    //std::cout << target_points[i] << image_points[i] << std::endl;
+    //cv::circle(frame, image_points[i], 5, CV_RGB(255, 0, 0), 2);
+  //}
 
   cv::line(frame, image_points[0], image_points[1], CV_RGB(255, 0, 0), 2);
   cv::line(frame, image_points[0], image_points[2], CV_RGB(0, 255, 0), 2);
@@ -221,13 +221,12 @@ void ProCamCal::on_pushButtonDetectPlane_clicked()
 
   ui->pushButtonDetectPlane->setText("Detect plane - Done!");
   cv::imshow("detect_plane", frame);
- 
 }
 
 void ProCamCal::on_spinBoxProjectorID_valueChanged(int value)
 {
   QRect screen = QApplication::desktop()->screenGeometry(value);
-  qDebug() << screen;
+  //qDebug() << screen;
   ui->spinBoxProjectorWidth->setValue(screen.width());
   ui->spinBoxProjectorHeight->setValue(screen.height());
 }
@@ -279,10 +278,7 @@ void ProCamCal::on_pushButtonCaptureFrame_clicked()
   std::vector<cv::Point2f> projector_points;
   cv::Size projector_pattern_size = cv::Size(step_x_, step_y_);
   projector_found = cv::findCirclesGrid( frame_gray_neg, projector_pattern_size, projector_points, cv::CALIB_CB_SYMMETRIC_GRID);
-    
-
-
-
+ 
   if(!projector_found)
   {
     return;
@@ -295,7 +291,7 @@ void ProCamCal::on_pushButtonCaptureFrame_clicked()
   cv::Rodrigues(camera_rvec_, R);
   std::vector<cv::Point3f> plane_points;
   imagePoints2plane(projector_points, plane_points, R, camera_tvec_, camera_matrix_, 0.0);
-#if 1
+#if 0
   cv::Point3f start_point = plane_points[0];
   for(int i = 0; i < plane_points.size(); i++)
   {
@@ -364,10 +360,10 @@ void ProCamCal::on_pushButtonCalibrateProjector_clicked()
     rvecs, 
     tvecs, 
     CV_CALIB_FIX_K4 | CV_CALIB_FIX_K5);
-
-  printf("RMS error reported by calibrateCamera: %g\n", rms);
+    
   std::cout << projector_camera_matrix << std::endl;
   std::cout << projector_camera_dist_coeffs << std::endl;
+  printf("RMS error reported by calibrateCamera: %g\n", rms);
 }
 
 void ProCamCal::on_pushButtonLoadProjectorParemeter_clicked()
@@ -375,16 +371,26 @@ void ProCamCal::on_pushButtonLoadProjectorParemeter_clicked()
   QString filename = QFileDialog::getOpenFileName(this);
   if(filename.isNull())
     return;
-  qDebug() << filename;
+  //qDebug() << filename;
 
   cv::FileStorage file(filename.toStdString(), cv::FileStorage::READ);
 
   file["camera_matrix"] >> projector_matrix_;
   file["distortion_coefficients"] >> projector_dist_coeff_;
 
-  std::cout << projector_matrix_ << std::endl;    
-  std::cout << projector_dist_coeff_ << std::endl;
-#if 0
+  projector_rvec_ = cv::Mat::zeros(3, 1, CV_64F);
+  projector_tvec_ = cv::Mat::zeros(3, 1, CV_64F);
+
+
+  if(!file["rvec"].isNone()) file["rvec"] >> projector_rvec_;
+  if(!file["tvec"].isNone()) file["tvec"] >> projector_tvec_;
+
+  std::cout << "projector_matrix: " << projector_matrix_ << std::endl;    
+  std::cout << "projector_dist_coeff " << projector_dist_coeff_ << std::endl;
+  std::cout << "rvec: " << projector_rvec_ << std::endl;    
+  std::cout << "tvec " << projector_tvec_ << std::endl;
+
+#if SHOW_DEBUG
   projector_rvec_ = cv::Mat::zeros(3, 1, CV_32F);
   projector_tvec_ = cv::Mat::zeros(3, 1, CV_32F);
   std::cout << projector_rvec_ << projector_tvec_ << std::endl;
@@ -443,6 +449,7 @@ void ProCamCal::on_pushButtonProjectorDetectPlane_clicked()
   std::vector<cv::Point3f> plane_points;
   imagePoints2plane(projected_corner_points_, plane_points, R, camera_tvec_, camera_matrix_, 0.0);
 
+#if SHOW_DEBUG
   for(int i = 0; i < plane_points.size(); i++)
   {
     std::cout << plane_points[i];
@@ -451,6 +458,7 @@ void ProCamCal::on_pushButtonProjectorDetectPlane_clicked()
     plane_points[i].z -=  plane_points[0].z;
     std::cout << plane_points[i] << std::endl;
   }
+#endif
 
   cv::solvePnP(
     plane_points, 
@@ -463,15 +471,12 @@ void ProCamCal::on_pushButtonProjectorDetectPlane_clicked()
   std::cout << "projector_rvec:" << projector_rvec_ << std::endl;
   std::cout << "projector_tvec:" << projector_tvec_ << std::endl;
 
-
-
+#if SHOW_DEBUG  
   std::vector<cv::Point3f> target_points;
   std::vector<cv::Point2f> image_points;  
   target_points.push_back(cv::Point3f(0.5, 0.2, 0));
   target_points.push_back(cv::Point3f(0.4, 0.2, 0));
   target_points.push_back(cv::Point3f(0.5, 0.1, 0));
-
-  //target_points.push_back(cv::Point3f(0.5, 0.2, 0.2));
   
   
   
@@ -497,7 +502,7 @@ void ProCamCal::on_pushButtonProjectorDetectPlane_clicked()
   }
 
   display_ui->label->setPixmap(pixmap);
-
+#endif
 }
 
 void ProCamCal::on_pushButtonProjectorDetectPlane_clicked2()
