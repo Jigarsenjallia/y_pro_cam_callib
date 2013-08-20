@@ -338,31 +338,21 @@ double computeReprojectionErrors(
 }
 
 void ProCamCal::on_pushButtonCalibrateProjector_clicked()
-{
-
-  cv::Mat projector_camera_matrix = cv::Mat::eye(3, 3, CV_64F);
-  projector_camera_matrix.at<double>(0,0) = 400;
-  projector_camera_matrix.at<double>(0,2) = 400;
-  projector_camera_matrix.at<double>(1,1) = 400;
-  projector_camera_matrix.at<double>(1,2) = 300;
-  std::cout << projector_camera_matrix << std::endl;
-
-  cv::Mat projector_camera_dist_coeffs = cv::Mat::zeros(8, 1, CV_64F);
-
+{  
   std::vector<cv::Mat> rvecs;
   std::vector<cv::Mat> tvecs;
   double rms = cv::calibrateCamera(
     projector_object_points_, 
     projector_image_points_, 
     cv::Size(ui->spinBoxProjectorWidth->value(), ui->spinBoxProjectorHeight->value()),
-    projector_camera_matrix,
-    projector_camera_dist_coeffs,
+    projector_matrix_,
+    projector_dist_coeff_,
     rvecs, 
     tvecs, 
     CV_CALIB_FIX_K4 | CV_CALIB_FIX_K5);
     
-  std::cout << projector_camera_matrix << std::endl;
-  std::cout << projector_camera_dist_coeffs << std::endl;
+  std::cout << projector_matrix_ << std::endl;
+  std::cout << projector_dist_coeff_ << std::endl;
   printf("RMS error reported by calibrateCamera: %g\n", rms);
 }
 
